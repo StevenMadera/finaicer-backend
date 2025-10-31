@@ -1,14 +1,3 @@
-// --- Endpoint para listar SMS clasificados ---
-app.get('/api/sms', async (req, res) => {
-  try {
-    const { userId } = req.query;
-    const filter = userId ? { userId } : {};
-    const smsList = await SMS.find(filter).sort({ date: -1 });
-    res.json(smsList);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 
 
@@ -91,16 +80,6 @@ const reportSchema = new mongoose.Schema({
   ]
 }, { timestamps: true });
 const Report = mongoose.model('Report', reportSchema);
-
-// Modelo SMS
-const smsSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
-  body: { type: String, required: true },
-  from: { type: String },
-  date: { type: Date, default: Date.now },
-  classification: { type: String },
-}, { timestamps: true });
-const SMS = mongoose.model('SMS', smsSchema);
 // --- RUTAS DE PRUEBA ---
 // Login de usuario
 app.post('/api/usuarios/login', async (req, res) => {
@@ -258,22 +237,6 @@ app.get('/api/reportes/listar', async (req, res) => {
   }
 });
 
-
-
-// --- Endpoint para recibir SMS clasificados ---
-app.post('/api/sms', async (req, res) => {
-  try {
-    const { userId, body, from, classification, date } = req.body;
-    if (!body) {
-      return res.status(400).json({ error: 'El cuerpo del SMS es requerido.' });
-    }
-    const sms = new SMS({ userId, body, from, classification, date });
-    await sms.save();
-    res.status(201).json(sms);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
 
 // --- Endpoint Gemini Chat ---
 import fetch from 'node-fetch';
