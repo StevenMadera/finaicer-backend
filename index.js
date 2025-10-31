@@ -81,6 +81,27 @@ const reportSchema = new mongoose.Schema({
 }, { timestamps: true });
 const Report = mongoose.model('Report', reportSchema);
 // --- RUTAS DE PRUEBA ---
+// Login de usuario
+app.post('/api/usuarios/login', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email y password requeridos' });
+  }
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ error: 'Usuario no encontrado' });
+    }
+    if (user.password !== password) {
+      return res.status(401).json({ error: 'Contraseña incorrecta' });
+    }
+    // Opcional: no enviar password en la respuesta
+    const { password: _, ...userData } = user.toObject();
+    res.json(userData);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Crear usuario
 app.post('/api/usuarios', async (req, res) => {
@@ -133,6 +154,9 @@ app.delete('/api/usuarios/:id', async (req, res) => {
 // Crear transacción
 app.post('/api/transacciones', async (req, res) => {
   try {
+    if (!req.body.userId) {
+      return res.status(400).json({ error: 'userId es requerido para crear la transacción' });
+    }
     const tx = new Transaction(req.body);
     await tx.save();
     console.log('Transacción creada:', tx);
@@ -146,8 +170,12 @@ app.post('/api/transacciones', async (req, res) => {
 // Listar transacciones
 app.get('/api/transacciones', async (req, res) => {
   try {
-    const txs = await Transaction.find();
-    console.log('Transacciones:', txs);
+    const userId = req.query.userId;
+    if (!userId) {
+      return res.status(400).json({ error: 'userId es requerido para listar transacciones' });
+    }
+    const txs = await Transaction.find({ userId });
+    console.log('Transacciones del usuario', userId, txs);
     res.json(txs);
   } catch (err) {
     res.status(500).json({ error: err.message });
