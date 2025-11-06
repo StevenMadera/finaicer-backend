@@ -4,7 +4,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import corsMiddleware from './cors-config.js';
+import cors from 'cors';
 import http from 'node:http';
 import { Server } from 'socket.io';
 
@@ -19,17 +19,7 @@ const io = new Server(server, {
   }
 });
 app.use(express.json());
-app.use(corsMiddleware);
-// CORS manual para asegurar compatibilidad
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
+app.use(cors());
 
 const { DB_USER, DB_PASS, DB_CLUSTER, DB_NAME = 'FinAIcer' } = process.env;
 const encodedPass = encodeURIComponent(DB_PASS);
