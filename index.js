@@ -289,7 +289,93 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Ruta no encontrada' });
 });
 
-// ...existing code...
+// --- RUTAS ADICIONALES ---
+// Listar transacciones de un usuario
+app.get('/api/usuarios/:id/transacciones', async (req, res) => {
+  const txs = await Transaction.find({ userId: req.params.id });
+  res.json(txs);
+});
+
+// 📊 Reporte mensual de ingresos/egresos por usuario (ahora guardado en DB)
+app.get('/api/usuarios/:id/reportes/:yyyymm', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const period = req.params.yyyymm; // Ejemplo: "2025-09"
+
+    // 🔍 Verificar si ya existe
+    let existingReport = await Report.findOne({ userId, period });
+    if (existingReport) {
+      return res.json(existingReport);
+    }
+
+    // Calcular rango de fechas
+    const [year, month] = period.split('-').map(Number);
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 1);
+
+    // Totales por tipo
+    const totals = await Transaction.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(userId),
+          date: { $gte: start, $lt: end }
+        }
+      },
+      {
+        $group: {
+          _id: '$type',
+          total: { $sum: '$amount' }
+        }
+      }
+    ]);
+
+    let totalIncome = 0;
+    let totalExpenses = 0;
+
+    for (const t of totals) {
+      if (t._id === 'ingreso') totalIncome = t.total;
+      if (t._id === 'egreso') totalExpenses = t.total;
+    }
+
+    const balance = totalIncome - totalExpenses;
+
+    // Top categorías
+    const categories = await Transaction.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(userId),
+          date: { $gte: start, $lt: end }
+        }
+      },
+      {
+        $group: {
+          _id: '$category',
+          amount: { $sum: '$amount' }
+        }
+      },
+      { $sort: { amount: -1 } },
+      { $limit: 5 }
+    ]);
+
+    // Guardar reporte
+    const report = await Report.create({
+      userId,
+      period,
+      totalIncome,
+      totalExpenses,
+      balance,
+      topCategories: categories.map(c => ({
+        category: c._id,
+        amount: c.amount
+      }))
+    });
+
+    res.json(report);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error generando reporte' });
+  }
+});
 
 // Listar transacciones de un usuario
 app.get('/api/usuarios/:id/transacciones', async (req, res) => {
